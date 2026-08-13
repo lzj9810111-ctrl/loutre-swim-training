@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase/client'
 type Role = 'coach' | 'parent' | 'admin'
 type Student = { id: string; name: string; birthday?: string | null; gender?: string | null }
 type RecordRow = { id: string; student_id: string; trained_on: string; stroke: string; distance_m: number; result_seconds: number; note?: string | null }
-type Screen = 'auth' | 'home' | 'students' | 'record' | 'parent'
+type Screen = 'auth' | 'home' | 'students' | 'student' | 'record' | 'parent'
 
 const strokes = [
   ['freestyle', '自由泳'],
@@ -236,7 +236,17 @@ export default function App() {
 
   async function openStudents() {
     if (userId) await loadCoachData(userId)
+    setSelectedStudent(null)
+    setInviteCode('')
     setScreen('students')
+  }
+
+  async function openStudent(student: Student) {
+    if (userId) await loadCoachData(userId)
+    setSelectedStudent(student)
+    setInviteCode('')
+    setMessage('')
+    setScreen('student')
   }
 
   async function saveRecord() {
@@ -428,17 +438,11 @@ export default function App() {
         <div className="student-list">
           {students.map((s) => (
             <article className="student-row" key={s.id}>
-              <button
-                className="student-main"
-                onClick={() => {
-                  setSelectedStudent(s)
-                  setScreen('students')
-                }}
-              >
+              <button className="student-main" onClick={() => openStudent(s)}>
                 <b>{s.name}</b>
                 <small>{records.filter((r) => r.student_id === s.id).length} 条训练记录</small>
               </button>
-              <button onClick={() => beginRecord(s)}>记录</button>
+              <button onClick={() => openStudent(s)}>历史</button>
               <button onClick={() => makeInvite(s)}>家长码</button>
             </article>
           ))}
@@ -451,19 +455,50 @@ export default function App() {
             <p className="muted">一次性使用，7 天有效。家长绑定后只有查看权限。</p>
           </section>
         )}
-        {selectedStudent && (
-          <section className="card">
-            <div className="eyebrow">近期记录</div>
-            <h2>{selectedStudent.name}</h2>
-            <div className="history">
-              {selectedRecords.length ? (
-                selectedRecords.slice(0, 20).map((r) => <RecordItem key={r.id} r={r} />)
-              ) : (
-                <div className="empty">还没有训练记录</div>
-              )}
-            </div>
+      </main>
+    )
+  }
+
+  if (screen === 'student' && selectedStudent) {
+    return (
+      <main className="shell">
+        <Header name={name} onHome={() => setScreen('home')} />
+        <div className="step-head">
+          <button className="text-button" onClick={openStudents}>
+            ← 返回学员
+          </button>
+        </div>
+        {message && <div className="notice">{message}</div>}
+        <section className="card">
+          <div className="eyebrow">学员详情</div>
+          <h1>{selectedStudent.name}</h1>
+          <p className="muted">共 {selectedRecords.length} 条训练记录</p>
+          <div className="inline-form">
+            <button className="button" onClick={() => beginRecord(selectedStudent)}>
+              记录新成绩
+            </button>
+            <button className="button" onClick={() => makeInvite(selectedStudent)}>
+              生成家长码
+            </button>
+          </div>
+        </section>
+        {inviteCode && (
+          <section className="card invite-card">
+            <div className="eyebrow">家长邀请码</div>
+            <div className="invite-code">{inviteCode}</div>
+            <p className="muted">一次性使用，7 天有效。家长绑定后只有查看权限。</p>
           </section>
         )}
+        <section className="card">
+          <div className="eyebrow">训练历史</div>
+          <div className="history">
+            {selectedRecords.length ? (
+              selectedRecords.map((r) => <RecordItem key={r.id} r={r} />)
+            ) : (
+              <div className="empty">还没有训练记录</div>
+            )}
+          </div>
+        </section>
       </main>
     )
   }
